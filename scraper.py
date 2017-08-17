@@ -1,4 +1,4 @@
-# coding: utf-8
+# -*- coding: utf-8 -*-
 import sys
 import json
 from datetime import datetime
@@ -6,6 +6,8 @@ from normality import slugify
 from hashlib import sha1
 import requests
 from lxml import etree
+import pdb
+from bs4 import BeautifulSoup as soup
 # from pprint import pprint
 
 URL = "https://www.bundestag.de/"
@@ -124,16 +126,20 @@ def scrape_index(out_file):
             'classification': 'legislature'
         }
     }
-    doc = open_xml(AUSSCHUSS_INDEX_URL)
-    for info_url in doc.findall(".//ausschussDetailXML"):
-        scrape_gremium(info_url.text.strip(), orgs)
+    #doc = open_xml(AUSSCHUSS_INDEX_URL)
+    #for info_url in doc.findall(".//ausschussDetailXML"):
+    #    scrape_gremium(info_url.text.strip(), orgs)
 
     persons = []
     doc = open_xml(MDB_INDEX_URL)
+    c = 0
     for info_url in doc.findall(".//mdbInfoXMLURL"):
         person = scrape_mdb(info_url.text, orgs)
         # pprint(person)
         persons.append(person)
+        c += 1
+        if c==15:
+            pdb.set_trace()
 
     store_json(out_file, persons, orgs.values())
 
@@ -146,12 +152,24 @@ def store_json(out_file, persons, organizations):
         }, fh, indent=2)
 
 
+def process_interests(interests):
+    html = soup(interests)
+    interestList = html.find_all('ul', class_='voa_list bt-liste')
+    return [interest.text for interest in interestList]
+
+def extract_salary(interests):
+    #TODO: separate diffente salary classes
+    salaries = [position for position in interest if position.find('Stufe')!=-1]
+    salaries = [salary.replace(u'\xa0', ' ') for salary in salaries]
+
+
 def scrape_mdb(url, orgs):
     doc = open_xml(url)
     if not doc.findtext('.//mdbID'):
         print 'FAILED', url
         return
     id = int(doc.findtext('.//mdbID'))
+    interests =  doc.findtext('.//mdbVeroeffentlichungspflichtigeAngaben')
     person_data = {
         'id': make_id('mdb', id),
         'given_name': doc.findtext('.//mdbVorname'),
@@ -168,7 +186,8 @@ def scrape_mdb(url, orgs):
         'children': doc.findtext('.//mdbAnzahlKinder'),
         'state': doc.findtext('.//mdbLand'),
         'trivia': doc.findtext('.//mdbWissenswertes'),
-        'interests': doc.findtext('.//mdbVeroeffentlichungspflichtigeAngaben'),
+        'interests': interests,  
+        'procInterests': process_interests(interests),
         'marital_status': doc.findtext('.//mdbFamilienstand'),
         'summary': doc.findtext('.//mdbBiografischeInformationen'),
         'image': doc.findtext('.//mdbFotoURL'),
@@ -302,4 +321,6 @@ def scrape_mdb(url, orgs):
 
 
 if __name__ == '__main__':
-    scrape_index(sys.argv[1])
+    #scrape_index(sys.argv[1])
+    scrape_index('test')
+
