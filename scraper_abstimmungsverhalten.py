@@ -1,7 +1,6 @@
 import requests
 from ast import literal_eval
 from bs4 import BeautifulSoup as soup
-import json
 import pdb
 import pandas as pd
 
@@ -25,31 +24,49 @@ def setPersonalData(db, ind, personalData):
     return db
 
 
+def printProgress(num, fivePercent, count, errors):
+    print '====> {0:3d} Percent Processed <===='.format(num/fivePercent)
+    print '{0:4d} profiles scanned:'.format(num) 
+    print '   - {0:3d} MdBs found'.format(count)
+    print '   - {0:3d} MdB requests failed'.format(errors)
+    print ''
+
+
+def saveData(data, path):
+    data.to_csv(path, encoding='utf8')
+
+
+
+output = 'mdb_abstimmungen.csv'
+
 data = pd.DataFrame()
 
 print 'Load Data'
 jsonProfiles = getJSON(URL_PROFILES)
 profiles = jsonProfiles['profiles']
 
+fivePercent = len(profiles)/20
+
 count = 0
 errors = 0
 
-for profile in profiles:
+print 'Start Processing'
+for num, profile in enumerate(profiles):
+    if num % fivePercent == 0 and num != 0:
+        printProgress(num, fivePercent, count, errors)
+        saveData(data, output)
+
     personalData = profile['personal']
-    metaData = profile['meta']
-    print personalData['first_name'] + ' ' + personalData['last_name']
-    profilePage = metaData['url']
+    profilePage =  profile['meta']['url']
     htmlPage = getHtml(profilePage)
 
     isInBundestag = htmlPage.find('option', text=BUNDESTAG)
     
     if isInBundestag:
-        print 'Bundestagsabgeordnete(r)'
         bundestagLink = isInBundestag['value']
 
         setPersonalData(data, count, personalData)
         data.loc[count, 'party'] = profile['party']
-
         bundestagProfile = getHtml(URL + bundestagLink)
 
         try:
@@ -68,11 +85,6 @@ for profile in profiles:
             'Error: Processing failed'
             errors += 1
 
-    print ''
+saveData(data, output)
 
-
-print count
-pdb.set_trace()
-
-print 'End'
 
