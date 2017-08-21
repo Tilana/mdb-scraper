@@ -6,7 +6,6 @@ from normality import slugify
 from hashlib import sha1
 import requests
 from lxml import etree
-import pdb
 from bs4 import BeautifulSoup as soup
 # from pprint import pprint
 
@@ -126,20 +125,17 @@ def scrape_index(out_file):
             'classification': 'legislature'
         }
     }
-    #doc = open_xml(AUSSCHUSS_INDEX_URL)
-    #for info_url in doc.findall(".//ausschussDetailXML"):
-    #    scrape_gremium(info_url.text.strip(), orgs)
+    doc = open_xml(AUSSCHUSS_INDEX_URL)
+    for info_url in doc.findall(".//ausschussDetailXML"):
+        scrape_gremium(info_url.text.strip(), orgs)
 
     persons = []
     doc = open_xml(MDB_INDEX_URL)
-    c = 0
     for info_url in doc.findall(".//mdbInfoXMLURL"):
         person = scrape_mdb(info_url.text, orgs)
+        extract_salary(person)
         # pprint(person)
         persons.append(person)
-        c += 1
-        if c==15:
-            pdb.set_trace()
 
     store_json(out_file, persons, orgs.values())
 
@@ -153,14 +149,26 @@ def store_json(out_file, persons, organizations):
 
 
 def process_interests(interests):
-    html = soup(interests)
+    html = soup(interests, 'lxml')
     interestList = html.find_all('ul', class_='voa_list bt-liste')
     return [interest.text for interest in interestList]
 
-def extract_salary(interests):
-    #TODO: separate diffente salary classes
-    salaries = [position for position in interest if position.find('Stufe')!=-1]
-    salaries = [salary.replace(u'\xa0', ' ') for salary in salaries]
+
+def extract_salary(person):
+    interests = person['interests']
+    interests = process_interests(interests)
+    person['num_interests'] = len(interests)
+    salaries = [salary.replace(u'\xa0', ' ') for salary in interests]
+    for num in range(1,11):
+        stufe = 'Stufe %i' % num
+        person[stufe] = extract_stufe(salaries, stufe)
+
+
+def extract_stufe(interests, stufe):
+    positions = [position.split(',')[0] for position in interests if position.find(stufe)!=-1]
+    if len(positions)==1:
+        return positions[0]
+    return positions
 
 
 def scrape_mdb(url, orgs):
@@ -169,7 +177,6 @@ def scrape_mdb(url, orgs):
         print 'FAILED', url
         return
     id = int(doc.findtext('.//mdbID'))
-    interests =  doc.findtext('.//mdbVeroeffentlichungspflichtigeAngaben')
     person_data = {
         'id': make_id('mdb', id),
         'given_name': doc.findtext('.//mdbVorname'),
@@ -186,8 +193,7 @@ def scrape_mdb(url, orgs):
         'children': doc.findtext('.//mdbAnzahlKinder'),
         'state': doc.findtext('.//mdbLand'),
         'trivia': doc.findtext('.//mdbWissenswertes'),
-        'interests': interests,  
-        'procInterests': process_interests(interests),
+        'interests': doc.findtext('.//mdbVeroeffentlichungspflichtigeAngaben'),  
         'marital_status': doc.findtext('.//mdbFamilienstand'),
         'summary': doc.findtext('.//mdbBiografischeInformationen'),
         'image': doc.findtext('.//mdbFotoURL'),
@@ -321,6 +327,5 @@ def scrape_mdb(url, orgs):
 
 
 if __name__ == '__main__':
-    #scrape_index(sys.argv[1])
-    scrape_index('test')
+    scrape_index(sys.argv[1])
 
