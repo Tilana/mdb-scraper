@@ -5,6 +5,7 @@ from datetime import datetime
 from normality import slugify
 from hashlib import sha1
 import requests
+import pdb
 from lxml import etree
 from bs4 import BeautifulSoup as soup
 # from pprint import pprint
@@ -133,7 +134,8 @@ def scrape_index(out_file):
     doc = open_xml(MDB_INDEX_URL)
     for info_url in doc.findall(".//mdbInfoXMLURL"):
         person = scrape_mdb(info_url.text, orgs)
-        extract_salary(person)
+        if 'interests' in person.keys():
+            extract_salary(person)
         # pprint(person)
         persons.append(person)
 
@@ -328,4 +330,5 @@ def scrape_mdb(url, orgs):
 
 if __name__ == '__main__':
     scrape_index(sys.argv[1])
+    #scrape_index('test')
 
