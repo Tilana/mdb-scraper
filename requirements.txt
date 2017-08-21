@@ -2,3 +2,4 @@ lxml
 cssselect
 normality
 dataset
+beautifulsoup4
