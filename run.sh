@@ -1,10 +1,13 @@
 #!/bin/bash
 
-ARCHIVE=$DATA_PATH/bundestag/mdb
-POPOLOFILE=$ARCHIVE/popolo-`date +%Y%m%d`.json
+ARCHIVE=./data/
+MDB=$ARCHIVE/mdb-`date +%Y%m%d`.json
+VOTES=$ARCHIVE/votes-`date +%Y%m%d`.csv
 
 mkdir -p $ARCHIVE
-python scraper.py $POPOLOFILE
 
-aws s3 cp $POPOLOFILE s3://archive.pudo.org/bundestag/mdb/popolo-`date +%Y%m%d`.json
-aws s3 cp $POPOLOFILE s3://archive.pudo.org/bundestag/mdb/popolo-latest.json
+echo Scrape MdBs 
+python scraper.py $MDB
+
+echo Scrape Votes
+python scraper_votes.py $VOTES
