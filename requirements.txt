@@ -3,3 +3,4 @@ cssselect
 normality
 dataset
 beautifulsoup4
+pandas
